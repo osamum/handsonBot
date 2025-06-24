@@ -8,13 +8,35 @@ const web_search_key = process.env['WEB_SEARCH_KEY'];
 const isAvailable = web_search_endpoint && web_search_key ? true : false;
 
 async function webSearch(query) {
-    /*
-    GitHub Copilot や他の生成 AI サービスを使用し、以下のプロンプトでこの関数のコードを生成してください
-    -----
-    webSearch という名前で、引数 query で受け取った文字列を (※API を提供している任意の検索サービス) API で検索し、検索結果の url を配列で返す関数を JavaScript で作成してください。
-    ・取得する結果の個数は 3 件にしてください
-    ・HTTP のリクエストには fetch を使用してください
-    */
+    if (!web_search_endpoint || !web_search_key) {
+        throw new Error('Web search endpoint and key are required');
+    }
+
+    try {
+        const response = await fetch(`${web_search_endpoint}/v7.0/search?q=${encodeURIComponent(query)}&count=3`, {
+            method: 'GET',
+            headers: {
+                'Ocp-Apim-Subscription-Key': web_search_key,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Extract URLs from Bing Search API response
+        if (data.webPages && data.webPages.value) {
+            return data.webPages.value.map(item => item.url);
+        }
+        
+        return [];
+    } catch (error) {
+        console.error('Web search error:', error);
+        throw error;
+    }
 }
 
 
@@ -75,7 +97,7 @@ async function getWebSearchResult(query) {
         //Web ページの内容を取得
         const bodyContent = await getBodyContent(url);
         //コメントの削除
-        let rmed_content = rmComment(bodyContent);　
+        let rmed_content = rmCommentTag(bodyContent);
         //不要なタグの削除
         rmed_content = rmTagRange(rmed_content, 'style');
         rmed_content = rmTagRange(rmed_content, 'script');
